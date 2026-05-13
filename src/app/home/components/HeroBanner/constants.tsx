@@ -12,8 +12,8 @@ export const HERO_COPY: HeroCopy = {
   headlineHighlight: "confidence.",
   subheading:
     "Compare models, explore variants, and get smart recommendations based on your budget, fuel type, and lifestyle.",
-  primaryCta: { label: "Explore Cars", href: "/cars" },
-  secondaryCta: { label: "Get Recommendations", href: "/login?next=%2F" },
+  primaryCta: { label: "Explore Cars", href: "/shop" },
+  secondaryCta: { label: "Get Recommendations", href: "/auth/login" },
 };
 
 export const HERO_FEATURES: HeroFeature[] = [

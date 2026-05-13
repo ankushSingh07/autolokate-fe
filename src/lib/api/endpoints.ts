@@ -20,4 +20,28 @@ export const endpoints = {
     verify: "/v1/payments/verify",
     byId: (id: string) => `/v1/payments/${id}`,
   },
+  catalogue: {
+    brands: "/v1/catalogue/brands",
+    brandBySlug: (slug: string) => `/v1/catalogue/brands/${encodeURIComponent(slug)}`,
+    brandModels: (slug: string) =>
+      `/v1/catalogue/brands/${encodeURIComponent(slug)}/models`,
+    models: "/v1/catalogue/models",
+    modelDetails: (brandSlug: string, modelSlug: string) =>
+      `/v1/catalogue/brands/${encodeURIComponent(brandSlug)}/models/${encodeURIComponent(modelSlug)}`,
+    trending: "/v1/catalogue/trending",
+    search: "/v1/catalogue/search",
+  },
+  advisor: {
+    conversations: "/v1/advisor/conversations",
+    conversationById: (id: string) =>
+      `/v1/advisor/conversations/${encodeURIComponent(id)}`,
+    currentStep: (id: string) =>
+      `/v1/advisor/conversations/${encodeURIComponent(id)}/steps/current`,
+    submitAnswer: (id: string) =>
+      `/v1/advisor/conversations/${encodeURIComponent(id)}/answer`,
+    results: (id: string) =>
+      `/v1/advisor/conversations/${encodeURIComponent(id)}/results`,
+    actions: (id: string) =>
+      `/v1/advisor/conversations/${encodeURIComponent(id)}/actions`,
+  },
 } as const;

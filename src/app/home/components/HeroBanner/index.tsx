@@ -1,12 +1,21 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useIsAuthenticated } from "@/hooks/auth/useIsAuthenticated";
+import { PreferenceFinderWizard } from "../PreferenceFinderWizard";
 import { HERO_BACKGROUND, HERO_COPY, HERO_FEATURES } from "./constants";
 import { TrendingModelsCard } from "./content";
 import styles from "./index.module.css";
 
 export function HeroBanner() {
+  const authed = useIsAuthenticated();
+  // `authed === null` while the auth store is hydrating — treat the user as
+  // logged-out during SSR and the first client paint so the right column
+  // doesn't flash a logged-in shell before we know.
+  const loggedIn = authed === true;
   return (
     <section className={styles.hero}>
       {/* Theme-aware background imagery */}
@@ -92,8 +101,11 @@ export function HeroBanner() {
           </ul>
         </div>
 
-        <div className="w-full lg:col-span-5 lg:max-w-md lg:justify-self-end">
-          <TrendingModelsCard />
+        {/* Right column — XOR by auth state, mirroring Autolokate:
+              - logged out: trending-models teaser (still useful for browsing)
+              - logged in:  preference-finder wizard (saves session + matches) */}
+        <div className="flex w-full flex-col gap-5 lg:col-span-5 lg:max-w-md lg:justify-self-end">
+          {loggedIn ? <PreferenceFinderWizard /> : <TrendingModelsCard />}
         </div>
       </div>
     </section>

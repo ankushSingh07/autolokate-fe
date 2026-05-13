@@ -3,6 +3,7 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./styles/globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider, themeBootstrapScript } from "@/providers/theme-provider";
+import { PreferenceFinderProvider } from "@/providers/PreferenceFinderProvider";
 import { Chrome } from "@/layouts";
 
 const inter = Inter({
@@ -54,7 +55,9 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider>
-          <Chrome>{children}</Chrome>
+          <PreferenceFinderProvider>
+            <Chrome>{children}</Chrome>
+          </PreferenceFinderProvider>
           <Toaster
             position="top-center"
             richColors

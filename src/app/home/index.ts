@@ -1,3 +1,10 @@
 export { HeroBanner } from "./components/HeroBanner";
+export { HomeContent } from "./components/HomeContent";
+export { AiMatchedResults } from "./components/AiMatchedResults";
+export { BrowseMarketplace } from "./components/BrowseMarketplace";
+export { ExpertBookCta } from "./components/ExpertBookCta";
+export { IdgVideoBand } from "./components/IdgVideoBand";
+export { PlatformHighlights } from "./components/PlatformHighlights";
+export { PreferenceFinderWizard } from "./components/PreferenceFinderWizard";
 export { homeMetadata } from "./config/metadata";
 export { homeNavigation } from "./config/navigation";

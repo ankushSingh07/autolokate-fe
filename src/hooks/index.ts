@@ -2,3 +2,5 @@ export { useApiMutation, type UseApiMutationOptions, type UseApiMutationResult }
 export { useApiQuery, type UseApiQueryOptions, type UseApiQueryResult } from "./useApiQuery";
 export * from "./auth";
 export * from "./booking";
+export * from "./catalogue";
+export * from "./advisor";
