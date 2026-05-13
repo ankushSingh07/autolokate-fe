@@ -1,0 +1,95 @@
+/* Footer-scoped styles. Theme tokens drive colour; the background image
+   lives in /public/images and is layered with a gradient that fades it into
+   the page background so content stays readable. */
+
+.footer {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  color: var(--foreground);
+}
+
+/* Background image wrapper sits behind everything; the image itself uses
+   `fill` so it covers the footer area at the requested object position. */
+.bgWrap {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.bgImage {
+  object-fit: cover;
+  object-position: 88% center;
+}
+
+/* Soft fade from solid background on the left to transparent on the right
+   (large screens), so the imagery only shows on the right side. */
+.bgFade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    var(--background) 0%,
+    color-mix(in srgb, var(--background) 92%, transparent) 50%,
+    color-mix(in srgb, var(--background) 25%, transparent) 100%
+  );
+}
+
+@media (min-width: 1024px) {
+  .bgFade {
+    background: linear-gradient(
+      to right,
+      var(--background) 0%,
+      color-mix(in srgb, var(--background) 85%, transparent) 55%,
+      transparent 100%
+    );
+  }
+}
+
+/* Circular social icon button — hover lifts to primary blue. */
+.socialIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--background) 80%, transparent);
+  color: var(--muted-foreground);
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.socialIcon:hover {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  transform: translateY(-1px);
+}
+
+.socialIcon:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Dark-mode tweak — slightly darker pill, subtle white hover halo. */
+html[data-theme="dark"] .socialIcon {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="dark"] .socialIcon:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .socialIcon:hover {
+    transform: none;
+  }
+}
