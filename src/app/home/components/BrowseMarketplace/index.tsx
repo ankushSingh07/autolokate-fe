@@ -1,14 +1,21 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PreferenceCategoryDialog } from "@/components/shared/PreferenceCategoryDialog";
 import { useMarketplaceStats } from "@/hooks/catalogue";
 import { useIsAuthenticated } from "@/hooks/auth/useIsAuthenticated";
+import { useVehiclePreference } from "@/hooks/preferences";
 import { formatIntIn } from "@/lib/utils";
+import {
+  DEFAULT_VEHICLE_CATEGORY,
+  VEHICLE_CATEGORY_PROMPT_ENABLED,
+  readVehiclePreference,
+  type VehicleCategory,
+} from "@/lib/preferences";
 import {
   MARKETPLACE_BACKGROUND,
   MARKETPLACE_CARDS,
@@ -18,6 +25,11 @@ import {
   type MarketplaceStat,
 } from "./constants";
 
+interface PendingCardAction {
+  id: MarketplaceCardId;
+  href: string;
+}
+
 /**
  * "Browse the marketplace" section.
  *
@@ -25,17 +37,27 @@ import {
  * with title + 3 stat columns → three large explainer cards (Brand /
  * Compare / Explore).
  *
- * The "Start exploring" card is auth-aware:
- *  - Logged out  → routes to `/auth/login`.
- *  - Logged in   → scrolls to the AI-matched results section if present,
- *                  otherwise to the preference-finder wizard so the user
- *                  can complete it and then see matches.
+ * Auth-aware behaviour:
+ *  - Logged in  → buttons navigate (Brand/Compare) or scroll to the AI
+ *                 wizard (Explore).
+ *  - Logged out → if `VEHICLE_CATEGORY_PROMPT_ENABLED` is on, the first
+ *                 interaction opens a "Cars or Bikes?" preference popup and
+ *                 persists the choice in localStorage before continuing the
+ *                 original navigation. While the flag is off (only Cars are
+ *                 live today), we silently seed `DEFAULT_VEHICLE_CATEGORY`
+ *                 in localStorage and proceed straight to the destination.
  */
 export function BrowseMarketplace() {
   const router = useRouter();
   const { brandCount, listingCount, cityCount } = useMarketplaceStats();
   const authed = useIsAuthenticated();
   const loggedIn = authed === true;
+  const preference = useVehiclePreference();
+
+  const [pendingAction, setPendingAction] = useState<PendingCardAction | null>(
+    null,
+  );
+  const [preferenceDialogOpen, setPreferenceDialogOpen] = useState(false);
 
   const statValueById: Record<MarketplaceStat["id"], string> = {
     brands: formatIntIn(brandCount),
@@ -43,8 +65,23 @@ export function BrowseMarketplace() {
     cities: formatIntIn(cityCount),
   };
 
-  const handleCardClick = useCallback(
+  /**
+   * Resolve the actual destination for a card press.
+   *
+   * The "brand" card routes to `/{vehicleType}` so the listing page can show
+   * the right catalogue (Cars vs Bikes). We read the freshest value straight
+   * from localStorage rather than from the `preference` closure, because this
+   * function is invoked synchronously after `preference.set(...)` from the
+   * popup submit handler, when the React state has not re-rendered yet.
+   */
+  const navigateForCard = useCallback(
     (id: MarketplaceCardId, href: string) => {
+      if (id === "brand") {
+        const vehicleType =
+          readVehiclePreference() ?? DEFAULT_VEHICLE_CATEGORY;
+        router.push(`/${vehicleType}`);
+        return;
+      }
       if (id !== "explore") {
         router.push(href || "/shop");
         return;
@@ -59,11 +96,55 @@ export function BrowseMarketplace() {
       if (target) {
         target.scrollIntoView({ behavior: "smooth", block: "start" });
       } else {
-        router.push("/shop");
+        router.push(`/${readVehiclePreference() ?? DEFAULT_VEHICLE_CATEGORY}`);
       }
     },
     [loggedIn, router],
   );
+
+  /**
+   * Entry point for every card's CTA. For logged-out visitors who haven't
+   * picked a vehicle category yet:
+   *  - Prompt flag ON  → open the Cars/Bikes dialog and defer navigation.
+   *  - Prompt flag OFF → silently persist the default category and continue.
+   * Logged-in users (and anyone with a saved preference) navigate directly.
+   */
+  const handleCardClick = useCallback(
+    (id: MarketplaceCardId, href: string) => {
+      const needsPreference =
+        !loggedIn && preference.hydrated && preference.value === null;
+
+      if (needsPreference) {
+        if (VEHICLE_CATEGORY_PROMPT_ENABLED) {
+          setPendingAction({ id, href });
+          setPreferenceDialogOpen(true);
+          return;
+        }
+        // Single-category world today — lock in the default so future visits
+        // (and the rest of the app) can read a real value from localStorage.
+        preference.set(DEFAULT_VEHICLE_CATEGORY);
+      }
+
+      navigateForCard(id, href);
+    },
+    [loggedIn, preference, navigateForCard],
+  );
+
+  const handlePreferenceSubmit = useCallback(
+    (value: VehicleCategory) => {
+      preference.set(value);
+      setPreferenceDialogOpen(false);
+      const next = pendingAction;
+      setPendingAction(null);
+      if (next) navigateForCard(next.id, next.href);
+    },
+    [preference, pendingAction, navigateForCard],
+  );
+
+  const handlePreferenceOpenChange = useCallback((open: boolean) => {
+    setPreferenceDialogOpen(open);
+    if (!open) setPendingAction(null);
+  }, []);
 
   return (
     <section
@@ -156,30 +237,27 @@ export function BrowseMarketplace() {
                     {card.body}
                   </p>
 
-                  {card.id === "explore" ? (
-                    <Button
-                      type="button"
-                      size="lg"
-                      className="mt-7 w-full rounded-full"
-                      onClick={() => handleCardClick(card.id, card.cta.href)}
-                    >
-                      {card.cta.label}
-                    </Button>
-                  ) : (
-                    <Button
-                      asChild
-                      size="lg"
-                      className="mt-7 w-full rounded-full"
-                    >
-                      <Link href={card.cta.href}>{card.cta.label}</Link>
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="mt-7 w-full rounded-full"
+                    onClick={() => handleCardClick(card.id, card.cta.href)}
+                  >
+                    {card.cta.label}
+                  </Button>
                 </div>
               </li>
             );
           })}
         </ul>
       </div>
+
+      <PreferenceCategoryDialog
+        open={preferenceDialogOpen}
+        defaultValue={preference.value}
+        onOpenChange={handlePreferenceOpenChange}
+        onSubmit={handlePreferenceSubmit}
+      />
     </section>
   );
 }

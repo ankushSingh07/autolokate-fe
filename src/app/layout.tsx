@@ -4,6 +4,7 @@ import "./styles/globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider, themeBootstrapScript } from "@/providers/theme-provider";
 import { PreferenceFinderProvider } from "@/providers/PreferenceFinderProvider";
+import { VehiclePreferenceSync } from "@/components/shared/VehiclePreferenceSync";
 import { Chrome } from "@/layouts";
 
 const inter = Inter({
@@ -58,6 +59,7 @@ export default function RootLayout({
           <PreferenceFinderProvider>
             <Chrome>{children}</Chrome>
           </PreferenceFinderProvider>
+          <VehiclePreferenceSync />
           <Toaster
             position="top-center"
             richColors
