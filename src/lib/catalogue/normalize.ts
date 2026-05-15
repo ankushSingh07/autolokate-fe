@@ -1,4 +1,4 @@
-import type { CatalogueBrand, CatalogueModel } from "./types";
+import type { CatalogueBrand, CatalogueModel, CatalogueVariant } from "./types";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
@@ -92,6 +92,27 @@ function numericOrNull(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+export function normalizeVariant(raw: unknown): CatalogueVariant {
+  const row = readObject(raw);
+  const brand = readObject(row.brand);
+  const model = readObject(row.model);
+  const price = readObject(row.price);
+  const exShowroom =
+    row.ex_showroom_price ?? row.price ?? row.min_price ?? price.ex_showroom_price;
+  return {
+    ...row,
+    variant_name: String(row.variant_name ?? row.name ?? ""),
+    brand_slug: row.brand_slug != null ? String(row.brand_slug ?? brand.slug ?? "") : undefined,
+    brand_name: row.brand_name != null ? String(row.brand_name ?? brand.name ?? "") : undefined,
+    model_slug: row.model_slug != null ? String(row.model_slug ?? model.slug ?? "") : undefined,
+    model_name: row.model_name != null ? String(row.model_name ?? model.name ?? "") : undefined,
+    fuel_type: row.fuel_type != null ? String(row.fuel_type ?? row.fuel ?? "") : undefined,
+    ex_showroom_price: numericOrNull(exShowroom),
+    min_price: numericOrNull(row.min_price ?? exShowroom),
+    max_price: numericOrNull(row.max_price ?? exShowroom),
+  };
 }
 
 /** Pull a useful set of brand names out of a normalised brand array. */

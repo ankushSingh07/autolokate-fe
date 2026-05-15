@@ -33,7 +33,7 @@ export function ProfilePageContent() {
   // Real failure — backend returned an error.
   if (authed === true && userQuery.isError) {
     return (
-      <div className="mx-auto flex w-full max-w-md flex-col items-center px-5 py-20 text-center">
+      <div className="relative z-0 mx-auto flex w-full max-w-6xl flex-col items-center px-5 py-20 text-center">
         <span className="flex h-12 w-12 items-center justify-center rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-500">
           <AlertTriangle className="h-5 w-5" aria-hidden />
         </span>

@@ -3,5 +3,6 @@ export { useApiQuery, type UseApiQueryOptions, type UseApiQueryResult } from "./
 export * from "./auth";
 export * from "./booking";
 export * from "./catalogue";
+export * from "./prices";
 export * from "./advisor";
 export * from "./preferences";

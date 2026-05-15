@@ -2,20 +2,38 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import {
+  ArrowLeft,
+  ArrowRight,
   Car,
-  ChevronDown,
+  CheckCircle2,
   Fuel,
   IndianRupee,
   Loader2,
   MapPin,
   Phone,
-  SquarePen,
+  Shield,
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useUpdateProfile } from "@/hooks/auth";
 import {
@@ -27,28 +45,65 @@ import {
   validateProfileForm,
 } from "@/lib/profile/validation";
 import type { AuthUser, UpdateProfilePayload } from "@/services/auth/types";
+import { CommaTagInput } from "./CommaTagInput";
 import {
-  EMPTY_FORM,
   FIELD_ERROR_BORDER,
-  FIELD_INPUT,
-  FIELD_INPUT_WITH_ICON,
-  FIELD_SELECT,
   LABEL,
-  VEHICLE_CATEGORIES,
 } from "./constants";
 
 interface ProfileFormProps {
   user: AuthUser;
-  /** Callback after a successful save — typically `refetch` on the parent's user query. */
   onSaved?: (user: AuthUser) => void;
 }
 
-/**
- * Editable profile form rendered on the `/profile` page. Pre-fills from the
- * supplied `user`, validates client-side, and persists via `useUpdateProfile`.
- */
+const SECTION_IDS = [
+  "section-account",
+  "section-driving",
+  "section-budget",
+  "section-vehicle",
+  "section-review",
+] as const;
+
+/** Catalogue is cars-only for now — keep category locked in UI and payloads. */
+const LOCKED_VEHICLE_CATEGORY = "car" as const;
+
+const NAV_ITEMS = [
+  {
+    id: "section-account",
+    step: "01",
+    label: "Account",
+    Icon: User,
+  },
+  {
+    id: "section-driving",
+    step: "02",
+    label: "Driving Preferences",
+    Icon: Car,
+  },
+  {
+    id: "section-budget",
+    step: "03",
+    label: "Budget",
+    Icon: IndianRupee,
+  },
+  {
+    id: "section-vehicle",
+    step: "04",
+    label: "Vehicle preferences",
+    Icon: Fuel,
+  },
+  {
+    id: "section-review",
+    step: "05",
+    label: "Save Profile",
+    Icon: CheckCircle2,
+  },
+] as const;
+
 export function ProfileForm({ user, onSaved }: ProfileFormProps) {
   const router = useRouter();
+  const mainScrollRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useState<string>(SECTION_IDS[0]);
 
   const initial = useMemo<ProfileFormFields>(
     () => ({
@@ -63,12 +118,7 @@ export function ProfileForm({ user, onSaved }: ProfileFormProps) {
       preferred_body_types: Array.isArray(user.preferred_body_types)
         ? user.preferred_body_types.join(", ")
         : "",
-      preferred_vehicle_category: (() => {
-        const raw = user.preferred_vehicle_category?.trim().toLowerCase() ?? "";
-        return VEHICLE_CATEGORIES.includes(raw as (typeof VEHICLE_CATEGORIES)[number])
-          ? raw
-          : "";
-      })(),
+      preferred_vehicle_category: LOCKED_VEHICLE_CATEGORY,
     }),
     [user],
   );
@@ -76,7 +126,6 @@ export function ProfileForm({ user, onSaved }: ProfileFormProps) {
   const [form, setForm] = useState<ProfileFormFields>(initial);
   const [errors, setErrors] = useState<ProfileValidationErrors>({});
 
-  // Re-seed when the user object swaps in (e.g. after a refetch).
   useEffect(() => {
     setForm(initial);
     setErrors({});
@@ -86,6 +135,20 @@ export function ProfileForm({ user, onSaved }: ProfileFormProps) {
     successToast: "Profile updated successfully.",
     onSuccess: (next) => onSaved?.(next),
   });
+
+  const scrollToSection = useCallback((id: string) => {
+    const el = document.getElementById(id);
+    const panel = mainScrollRef.current;
+    setActiveSection(id);
+    if (!el) return;
+    if (panel?.contains(el)) {
+      const top =
+        el.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop;
+      panel.scrollTo({ top: Math.max(0, top - 16), behavior: "smooth" });
+      return;
+    }
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   function clearError(key: ProfileFieldKey) {
     setErrors((prev) => {
@@ -100,7 +163,6 @@ export function ProfileForm({ user, onSaved }: ProfileFormProps) {
     clearError(key);
     setForm((prev) => ({ ...prev, [key]: value }));
   }
-
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -126,7 +188,7 @@ export function ProfileForm({ user, onSaved }: ProfileFormProps) {
       preferred_fuel_types: checked.fuelPayload,
       preferred_body_types: checked.bodyPayload,
       preferred_vehicle_category:
-        form.preferred_vehicle_category.trim().toLowerCase() || null,
+        LOCKED_VEHICLE_CATEGORY,
     };
 
     void update.mutate(payload);
@@ -135,289 +197,338 @@ export function ProfileForm({ user, onSaved }: ProfileFormProps) {
   const saving = update.isLoading;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 py-12 sm:px-8 sm:py-16">
-      {/* Hero */}
-      <div className="mb-8 flex items-center gap-3 sm:gap-3.5">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-inner sm:h-11 sm:w-11">
-          <SquarePen className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
-        </span>
-        <div className="min-w-0 space-y-1">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
-            Edit profile
-          </h1>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Update your details synced with your account profile.
-          </p>
-        </div>
-      </div>
-
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-2xl border border-border/60 bg-card/95 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.25)] sm:rounded-[1.35rem]"
-      >
-        {/* ─── Account ────────────────────────────── */}
-        <section className="space-y-5 px-5 py-6 sm:px-7 sm:py-7">
-          <SectionHeading icon={User} label="Account" />
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field
-              label="Full name"
-              htmlFor="full_name"
-              error={errors.full_name}
-              span={2}
-            >
-              <input
-                id="full_name"
-                autoComplete="name"
-                maxLength={MAX_NAME}
-                placeholder="e.g. Rahul Sharma"
-                aria-invalid={Boolean(errors.full_name)}
-                disabled={saving}
-                className={cn(FIELD_INPUT, errors.full_name && FIELD_ERROR_BORDER)}
-                value={form.full_name}
-                onChange={(e) => patch("full_name", e.target.value)}
-              />
-            </Field>
-
-            <Field label="Phone" htmlFor="phone" error={errors.phone} span={2}>
-              <div className="relative">
-                <Phone
-                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
-                />
-                <input
-                  id="phone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  maxLength={22}
-                  placeholder="e.g. +91 88765 43210"
-                  aria-invalid={Boolean(errors.phone)}
-                  disabled={saving}
-                  className={cn(FIELD_INPUT_WITH_ICON, errors.phone && FIELD_ERROR_BORDER)}
-                  value={form.phone}
-                  onChange={(e) => patch("phone", e.target.value)}
-                />
-              </div>
-            </Field>
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-12">
+      <header className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex gap-4">
+          <Button
+            asChild
+            size="icon"
+            variant="outline"
+            className="h-11 w-11 shrink-0 rounded-full border-primary/35 bg-card/70 backdrop-blur-sm hover:bg-card/90"
+            aria-label="Back to home"
+          >
+            <Link href="/">
+              <ArrowLeft className="h-5 w-5" aria-hidden />
+            </Link>
+          </Button>
+          <div className="min-w-0 space-y-1">
+            <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+              Edit Profile
+            </h1>
+            <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+              Update your details and preferences to get the most relevant car recommendations.
+            </p>
           </div>
-        </section>
+        </div>
+        <div
+          aria-hidden
+          className="pointer-events-none hidden shrink-0 select-none lg:flex lg:h-28 lg:w-40 lg:items-center lg:justify-center"
+        >
+          <div className="relative flex h-full w-full items-center justify-center opacity-90">
+            <div className="absolute inset-0 rounded-full bg-primary/10 blur-3xl" />
+            <Car
+              className="relative z-10 h-16 w-16 text-primary drop-shadow-[0_0_18px_rgba(37,99,235,0.55)]"
+              strokeWidth={1.25}
+            />
+          </div>
+        </div>
+      </header>
 
-        <div className="h-px bg-border/60" />
+      <Card className="flex flex-col overflow-hidden border-primary/30 bg-card/80 text-card-foreground shadow-[0_0_48px_-16px_rgba(37,99,235,0.45)] backdrop-blur-md sm:rounded-[1.25rem] lg:h-[min(56rem,calc(100dvh-13rem))] lg:min-h-0 lg:flex-row lg:items-stretch lg:overflow-hidden">
+        <aside className="flex shrink-0 flex-col border-b border-border/60 bg-muted/15 p-5 lg:h-full lg:w-[280px] lg:min-w-[220px] lg:flex-shrink-0 lg:justify-between lg:overflow-hidden lg:border-r lg:border-b-0 lg:p-6">
+          <nav className="space-y-1" aria-label="Profile sections">
+              {NAV_ITEMS.map(({ id, step, label, Icon }) => {
+                const active = activeSection === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => scrollToSection(id)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition",
+                      active
+                        ? "bg-primary/15 text-primary shadow-[inset_3px_0_0_0_var(--color-primary)]"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border",
+                        active
+                          ? "border-primary/40 bg-primary/20"
+                          : "border-primary/30 bg-primary/10",
+                      )}
+                    >
+                      <Icon className="h-4 w-4 text-primary" aria-hidden />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/90">
+                        {step}
+                      </span>
+                      <span className="font-medium">{label}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
 
-        {/* ─── Driving preferences ───────────────── */}
-        <section className="space-y-5 px-5 py-6 sm:px-7 sm:py-7">
-          <SectionHeading icon={Car} label="Driving preferences" />
+          <div className="mt-8 rounded-xl border border-primary/25 bg-primary/5 p-4 text-center text-xs leading-relaxed text-muted-foreground lg:mt-0">
+              <Shield className="mx-auto mb-2 block h-5 w-5 text-primary" aria-hidden />
+              <p>
+                Your information is safe. We never share your data with anyone.{" "}
+                <Link href="/privacy" className="font-medium text-primary hover:underline">
+                  Privacy Policy
+                </Link>
+              </p>
+            </div>
+        </aside>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field
-              label="City ID"
-              htmlFor="city_id"
-              error={errors.city_id}
-              hint="Matches your marketplace city identifier when set."
-            >
-              <div className="relative">
-                <MapPin
-                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
+          <div
+            ref={mainScrollRef}
+            id="profile-form-scroll"
+            className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:p-8 lg:h-full lg:max-h-full lg:p-10"
+            role="region"
+            aria-label="Profile form fields"
+          >
+            <form onSubmit={handleSubmit} className="space-y-12">
+              <section id="section-account" className="scroll-mt-28 space-y-6">
+                <BlockHeading
+                  title="Account details"
+                  description="Basic information to personalize your experience."
                 />
-                <input
-                  id="city_id"
-                  maxLength={MAX_CITY_ID}
-                  placeholder="Catalogue ref"
-                  aria-invalid={Boolean(errors.city_id)}
-                  disabled={saving}
-                  className={cn(
-                    FIELD_INPUT_WITH_ICON,
-                    errors.city_id && FIELD_ERROR_BORDER,
-                  )}
-                  value={form.city_id}
-                  onChange={(e) => patch("city_id", e.target.value)}
-                />
-              </div>
-            </Field>
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <Field label="Full name" htmlFor="full_name" error={errors.full_name}>
+                    <div className="relative">
+                      <span
+                        className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-primary"
+                        aria-hidden
+                      >
+                        <User className="h-4 w-4 shrink-0" />
+                      </span>
+                      <Input
+                        id="full_name"
+                        autoComplete="name"
+                        maxLength={MAX_NAME}
+                        placeholder="e.g. Rahul Sharma"
+                        aria-invalid={Boolean(errors.full_name)}
+                        disabled={saving}
+                        className={cn(
+                          "h-11 pl-10 text-[0.9375rem]",
+                          errors.full_name && FIELD_ERROR_BORDER,
+                        )}
+                        value={form.full_name}
+                        onChange={(e) => patch("full_name", e.target.value)}
+                      />
+                    </div>
+                  </Field>
 
-            <Field
-              label="Vehicle category"
-              htmlFor="preferred_vehicle_category"
-              error={errors.preferred_vehicle_category}
-            >
-              <div className="relative">
-                <select
-                  id="preferred_vehicle_category"
-                  aria-invalid={Boolean(errors.preferred_vehicle_category)}
+                  <Field label="Phone number" htmlFor="phone" error={errors.phone}>
+                    <div className="relative">
+                      <span
+                        className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-primary"
+                        aria-hidden
+                      >
+                        <Phone className="h-4 w-4 shrink-0" />
+                      </span>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        maxLength={22}
+                        placeholder="e.g. +91 88765 43210"
+                        aria-invalid={Boolean(errors.phone)}
+                        disabled={saving}
+                        className={cn(
+                          "h-11 pl-10 text-[0.9375rem]",
+                          errors.phone && FIELD_ERROR_BORDER,
+                        )}
+                        value={form.phone}
+                        onChange={(e) => patch("phone", e.target.value)}
+                      />
+                    </div>
+                  </Field>
+                </div>
+              </section>
+
+              <section id="section-driving" className="scroll-mt-28 space-y-6">
+                <BlockHeading
+                  title="Driving preferences"
+                  description="Help us find the right cars available in your city."
+                />
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <Field
+                    label="City"
+                    htmlFor="city_id"
+                    hint="Matches your marketplace city identifier when set."
+                    error={errors.city_id}
+                  >
+                    <div className="relative">
+                      <span
+                        className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-primary"
+                        aria-hidden
+                      >
+                        <MapPin className="h-4 w-4 shrink-0" />
+                      </span>
+                      <Input
+                        id="city_id"
+                        maxLength={MAX_CITY_ID}
+                        placeholder="Catalogue ref"
+                        aria-invalid={Boolean(errors.city_id)}
+                        disabled={saving}
+                        className={cn(
+                          "h-11 pl-10 text-[0.9375rem]",
+                          errors.city_id && FIELD_ERROR_BORDER,
+                        )}
+                        value={form.city_id}
+                        onChange={(e) => patch("city_id", e.target.value)}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field
+                    label="Vehicle category"
+                    htmlFor="preferred_vehicle_category"
+                  >
+                    <div className="relative">
+                      <span
+                        className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-primary"
+                        aria-hidden
+                      >
+                        <Car className="h-4 w-4 shrink-0" />
+                      </span>
+                      <Select value={LOCKED_VEHICLE_CATEGORY} disabled>
+                        <SelectTrigger
+                          id="preferred_vehicle_category"
+                          aria-label="Vehicle category (cars only)"
+                          className="h-11 cursor-not-allowed items-center pl-10 pr-9 text-[0.9375rem] opacity-90"
+                          disabled
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="car">Car</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </Field>
+                </div>
+              </section>
+
+              <section id="section-budget" className="scroll-mt-28 space-y-6">
+                <BlockHeading
+                  title="Budget range (₹)"
+                  description="Set your budget range to see the best options."
+                />
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <Field label="Minimum budget" htmlFor="budget_min" error={errors.budget_min}>
+                    <InrAmountInput
+                      id="budget_min"
+                      value={form.budget_min}
+                      onChange={(v) => patch("budget_min", v)}
+                      disabled={saving}
+                      hasError={Boolean(errors.budget_min)}
+                    />
+                  </Field>
+                  <Field label="Maximum budget" htmlFor="budget_max" error={errors.budget_max}>
+                    <InrAmountInput
+                      id="budget_max"
+                      value={form.budget_max}
+                      onChange={(v) => patch("budget_max", v)}
+                      disabled={saving}
+                      hasError={Boolean(errors.budget_max)}
+                    />
+                  </Field>
+                </div>
+              </section>
+
+              <section id="section-vehicle" className="scroll-mt-28 space-y-6">
+                <BlockHeading
+                  title="Fuel & body preferences"
+                  description="Select your preferred fuel type and body style."
+                />
+                <div className="space-y-6">
+                  <Field
+                    label="Preferred fuels"
+                    htmlFor="preferred_fuel_types"
+                    error={errors.preferred_fuel_types}
+                  >
+                    <CommaTagInput
+                      id="preferred_fuel_types"
+                      placeholder="Add fuel (e.g. cng, diesel) — press Enter"
+                      value={form.preferred_fuel_types}
+                      onChange={(v) => patch("preferred_fuel_types", v)}
+                      disabled={saving}
+                      hasError={Boolean(errors.preferred_fuel_types)}
+                      aria-invalid={Boolean(errors.preferred_fuel_types)}
+                      icon={<Fuel className="h-4 w-4" aria-hidden />}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Preferred body styles"
+                    htmlFor="preferred_body_types"
+                    error={errors.preferred_body_types}
+                  >
+                    <CommaTagInput
+                      id="preferred_body_types"
+                      placeholder="Add style (e.g. suv, hatchback) — press Enter"
+                      value={form.preferred_body_types}
+                      onChange={(v) => patch("preferred_body_types", v)}
+                      disabled={saving}
+                      hasError={Boolean(errors.preferred_body_types)}
+                      aria-invalid={Boolean(errors.preferred_body_types)}
+                      icon={<Car className="h-4 w-4" aria-hidden />}
+                    />
+                  </Field>
+                </div>
+              </section>
+
+              <div
+                id="section-review"
+                className="scroll-mt-28 flex flex-col-reverse gap-3 border-t border-border/60 pt-8 sm:flex-row sm:items-center sm:justify-end sm:gap-3"
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 rounded-xl text-muted-foreground hover:text-foreground"
                   disabled={saving}
-                  className={cn(
-                    FIELD_SELECT,
-                    errors.preferred_vehicle_category && FIELD_ERROR_BORDER,
-                  )}
-                  value={form.preferred_vehicle_category}
-                  onChange={(e) => patch("preferred_vehicle_category", e.target.value)}
+                  onClick={() => router.push("/")}
                 >
-                  <option value="">Not specified</option>
-                  {VEHICLE_CATEGORIES.map((c) => (
-                    <option key={c} value={c} className="capitalize">
-                      {c[0].toUpperCase() + c.slice(1)}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
-                />
-              </div>
-            </Field>
-
-            <Field
-              label="Budget min (₹)"
-              htmlFor="budget_min"
-              error={errors.budget_min}
-            >
-              <div className="relative">
-                <IndianRupee
-                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
-                />
-                <input
-                  id="budget_min"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="Minimum"
-                  aria-invalid={Boolean(errors.budget_min)}
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="h-11 rounded-xl px-6 text-base font-semibold shadow-md"
                   disabled={saving}
-                  className={cn(
-                    FIELD_INPUT_WITH_ICON,
-                    errors.budget_min && FIELD_ERROR_BORDER,
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      Save profile
+                      <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
+                    </>
                   )}
-                  value={form.budget_min}
-                  onChange={(e) => patch("budget_min", e.target.value.replace(/\D/g, ""))}
-                />
+                </Button>
               </div>
-            </Field>
-
-            <Field
-              label="Budget max (₹)"
-              htmlFor="budget_max"
-              error={errors.budget_max}
-            >
-              <div className="relative">
-                <IndianRupee
-                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
-                />
-                <input
-                  id="budget_max"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="Maximum"
-                  aria-invalid={Boolean(errors.budget_max)}
-                  disabled={saving}
-                  className={cn(
-                    FIELD_INPUT_WITH_ICON,
-                    errors.budget_max && FIELD_ERROR_BORDER,
-                  )}
-                  value={form.budget_max}
-                  onChange={(e) => patch("budget_max", e.target.value.replace(/\D/g, ""))}
-                />
-              </div>
-            </Field>
-
-            <Field
-              label="Preferred fuels"
-              htmlFor="preferred_fuel_types"
-              error={errors.preferred_fuel_types}
-              span={2}
-            >
-              <div className="relative">
-                <Fuel
-                  className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
-                />
-                <input
-                  id="preferred_fuel_types"
-                  placeholder="Eg:- petrol, electric, diesel, hybrid, cng"
-                  aria-invalid={Boolean(errors.preferred_fuel_types)}
-                  disabled={saving}
-                  className={cn(
-                    FIELD_INPUT_WITH_ICON,
-                    errors.preferred_fuel_types && FIELD_ERROR_BORDER,
-                  )}
-                  value={form.preferred_fuel_types}
-                  onChange={(e) => patch("preferred_fuel_types", e.target.value)}
-                />
-              </div>
-            </Field>
-
-            <Field
-              label="Preferred body styles"
-              htmlFor="preferred_body_types"
-              error={errors.preferred_body_types}
-              span={2}
-            >
-              <input
-                id="preferred_body_types"
-                placeholder="Eg:- suv, hatchback"
-                aria-invalid={Boolean(errors.preferred_body_types)}
-                disabled={saving}
-                className={cn(
-                  FIELD_INPUT,
-                  errors.preferred_body_types && FIELD_ERROR_BORDER,
-                )}
-                value={form.preferred_body_types}
-                onChange={(e) => patch("preferred_body_types", e.target.value)}
-              />
-            </Field>
+            </form>
           </div>
-        </section>
-
-        {/* ─── Sticky-ish footer ─────────────────── */}
-        <div className="flex flex-col-reverse gap-2 border-t border-border/60 bg-muted/25 px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:gap-2.5 sm:px-7 sm:py-4">
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-11 rounded-xl"
-            onClick={() => router.push("/")}
-            disabled={saving}
-            asChild={false}
-          >
-            <Link href="/">Cancel</Link>
-          </Button>
-          <Button
-            type="submit"
-            className="h-11 rounded-xl px-6 text-base font-semibold shadow-md"
-            disabled={saving}
-          >
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                Saving…
-              </>
-            ) : (
-              "Save profile"
-            )}
-          </Button>
-        </div>
-      </form>
+      </Card>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────
-// Internal helpers — kept local since only the
-// form uses them.
-
-interface SectionHeadingProps {
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  label: string;
-}
-
-function SectionHeading({ icon: Icon, label }: SectionHeadingProps) {
+function BlockHeading({ title, description }: { title: string; description: string }) {
   return (
-    <div className="flex items-center gap-2 border-b border-border/55 pb-2">
-      <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary">{label}</p>
+    <div className="space-y-1">
+      <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
+        {title}
+      </h2>
+      <p className="text-sm text-muted-foreground">{description}</p>
     </div>
   );
 }
@@ -427,13 +538,12 @@ interface FieldProps {
   htmlFor: string;
   hint?: string;
   error?: string;
-  span?: 1 | 2;
   children: React.ReactNode;
 }
 
-function Field({ label, htmlFor, hint, error, span = 1, children }: FieldProps) {
+function Field({ label, htmlFor, hint, error, children }: FieldProps) {
   return (
-    <div className={cn("flex flex-col gap-2", span === 2 && "sm:col-span-2")}>
+    <div className="flex flex-col gap-2">
       <label htmlFor={htmlFor} className={LABEL}>
         {label}
       </label>
@@ -443,6 +553,51 @@ function Field({ label, htmlFor, hint, error, span = 1, children }: FieldProps) 
       ) : hint ? (
         <p className="text-xs leading-snug text-muted-foreground">{hint}</p>
       ) : null}
+    </div>
+  );
+}
+
+function InrAmountInput({
+  id,
+  value,
+  onChange,
+  disabled,
+  hasError,
+}: {
+  id: string;
+  value: string;
+  onChange: (digits: string) => void;
+  disabled?: boolean;
+  hasError?: boolean;
+}) {
+  const [focused, setFocused] = useState(false);
+  const display =
+    focused || !value.trim()
+      ? value
+      : Number(value.replace(/\D/g, "")).toLocaleString("en-IN");
+
+  return (
+    <div className="relative">
+      <span
+        className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-primary"
+        aria-hidden
+      >
+        <IndianRupee className="h-4 w-4 shrink-0" />
+      </span>
+      <Input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        disabled={disabled}
+        aria-invalid={hasError}
+        placeholder="e.g. 5,00,000"
+        className={cn("h-11 pl-10 text-[0.9375rem]", hasError && FIELD_ERROR_BORDER)}
+        value={display}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+      />
     </div>
   );
 }

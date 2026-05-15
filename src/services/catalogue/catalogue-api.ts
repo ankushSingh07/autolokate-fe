@@ -6,10 +6,15 @@ import { ApiService } from "@/services/api.service";
 import {
   normalizeBrand,
   normalizeModel,
+  normalizeVariant,
   readArray,
   unbox,
 } from "@/lib/catalogue/normalize";
-import type { CatalogueBrand, CatalogueModel } from "@/lib/catalogue/types";
+import type {
+  CatalogueBrand,
+  CatalogueModel,
+  CatalogueVariant,
+} from "@/lib/catalogue/types";
 
 /** Shared cache window for "stable" catalogue reads (brands, trending, etc.). */
 const CATALOGUE_TTL_MS = 5 * 60_000;
@@ -67,6 +72,60 @@ export async function getBrandModels(brandSlug: string): Promise<CatalogueModel[
     }
     return row;
   });
+}
+
+/** GET /v1/catalogue/brands/{brand}/models/{model} — full model record + nested media/specs when available. */
+export async function getModelDetails(
+  brandSlug: string,
+  modelSlug: string,
+): Promise<CatalogueModel | null> {
+  const b = brandSlug.trim();
+  const m = modelSlug.trim();
+  if (!b || !m) return null;
+  try {
+    const res = await ApiService.get<unknown>(endpoints.catalogue.modelDetails(b, m), {
+      withAuth: false,
+    });
+    const payload = unbox(res.data);
+    if (!payload) return null;
+    const row = normalizeModel(payload);
+    return !row.brand_slug?.trim() ? { ...row, brand_slug: b } : row;
+  } catch {
+    return null;
+  }
+}
+
+/** GET /v1/catalogue/brands/{brand}/models/{model}/variants */
+export async function getModelVariants(
+  brandSlug: string,
+  modelSlug: string,
+): Promise<CatalogueVariant[]> {
+  const b = brandSlug.trim();
+  const m = modelSlug.trim();
+  if (!b || !m) return [];
+  const res = await ApiService.get<unknown>(
+    endpoints.catalogue.modelVariants(b, m),
+    { withAuth: false },
+  );
+  const rows = readArray<unknown>(unbox(res.data));
+  return rows.map(normalizeVariant);
+}
+
+/** GET /v1/catalogue/brands/{brand}/models/{model}/variants/{variant} */
+export async function getVariantDetails(
+  brandSlug: string,
+  modelSlug: string,
+  variantSlug: string,
+): Promise<CatalogueVariant> {
+  const b = brandSlug.trim();
+  const m = modelSlug.trim();
+  const v = variantSlug.trim();
+  if (!v) return {};
+  const res = await ApiService.get<unknown>(
+    endpoints.catalogue.variantDetails(b, m, v),
+    { withAuth: false },
+  );
+  return normalizeVariant(unbox(res.data));
 }
 
 /** GET /v1/catalogue/trending — top picks for the hero trending rail. */

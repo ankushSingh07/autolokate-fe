@@ -28,3 +28,54 @@ export interface CatalogueModel {
   body_type?: string | null;
   [key: string]: unknown;
 }
+
+/** Normalised variant row from `/variants` and `/variants/{slug}`. */
+export interface CatalogueVariant {
+  id?: string;
+  slug?: string;
+  variant_name?: string;
+  name?: string;
+  brand_slug?: string;
+  brand_name?: string;
+  model_slug?: string;
+  model_name?: string;
+  fuel_type?: string;
+  ex_showroom_price?: number | null;
+  min_price?: number | null;
+  max_price?: number | null;
+  features?: Record<string, Record<string, unknown>>;
+  reviews?: unknown[];
+  [key: string]: unknown;
+}
+
+export type SpecGroupRow = {
+  group: string;
+  specs: Array<{
+    key: string;
+    display_name: string;
+    value: string;
+  }>;
+};
+
+export type FeatureGroupRow = {
+  group: string;
+  features: Array<{
+    key: string;
+    display_name: string;
+    value: Record<string, string>;
+  }>;
+};
+
+/** Aggregated client payload for the model detail page. */
+export type CatalogueModelDetailPayload = {
+  brandSlug: string;
+  modelSlug: string;
+  listing: CatalogueModel;
+  details: Record<string, unknown>;
+  variants: CatalogueVariant[];
+  modelImages: Record<string, unknown>[];
+  modelColors: Record<string, unknown>[];
+  specGroups: SpecGroupRow[];
+  featureGroups: FeatureGroupRow[];
+  reviews: Record<string, unknown>[];
+};
