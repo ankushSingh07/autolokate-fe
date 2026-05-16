@@ -81,9 +81,11 @@ export function Header({ variant = "default", className }: HeaderProps) {
   const navItems = useMemo(() => {
     const raw = resolveNavItems();
     const pref = vehiclePreference.value ?? DEFAULT_VEHICLE_CATEGORY;
-    return raw.map((item) =>
-      item.useVehicleCompareHref ? { ...item, href: `/${pref}/compare` } : item,
-    );
+    return raw.map((item) => {
+      if (item.useVehicleCompareHref) return { ...item, href: `/${pref}/compare` };
+      if (item.useVehicleExploreHref) return { ...item, href: `/${pref}/explore` };
+      return item;
+    });
   }, [vehiclePreference.value]);
   const isPremium = variant === "premium";
   // `null` while the auth state is still hydrating — render a placeholder to
@@ -133,11 +135,17 @@ export function Header({ variant = "default", className }: HeaderProps) {
         >
           {navItems.map((item) => {
             const compareNav = item.useVehicleCompareHref === true;
+            const exploreNav = item.useVehicleExploreHref === true;
             const active =
               pathname === item.href ||
-              (!compareNav && item.href !== "/" && pathname?.startsWith(`${item.href}/`)) ||
+              (!compareNav &&
+                !exploreNav &&
+                item.href !== "/" &&
+                pathname?.startsWith(`${item.href}/`)) ||
               (compareNav &&
-                (pathname === "/cars/compare" || pathname === "/bikes/compare"));
+                (pathname === "/cars/compare" || pathname === "/bikes/compare")) ||
+              (exploreNav &&
+                (pathname === "/cars/explore" || pathname === "/bikes/explore"));
             return (
               <Link
                 key={`${item.label}-${item.href}`}
@@ -217,11 +225,17 @@ export function Header({ variant = "default", className }: HeaderProps) {
           <div className="flex flex-col gap-0.5">
             {navItems.map((item) => {
               const compareNav = item.useVehicleCompareHref === true;
+              const exploreNav = item.useVehicleExploreHref === true;
               const active =
                 pathname === item.href ||
-                (!compareNav && item.href !== "/" && pathname?.startsWith(`${item.href}/`)) ||
+                (!compareNav &&
+                  !exploreNav &&
+                  item.href !== "/" &&
+                  pathname?.startsWith(`${item.href}/`)) ||
                 (compareNav &&
-                  (pathname === "/cars/compare" || pathname === "/bikes/compare"));
+                  (pathname === "/cars/compare" || pathname === "/bikes/compare")) ||
+                (exploreNav &&
+                  (pathname === "/cars/explore" || pathname === "/bikes/explore"));
               return (
                 <Link
                   key={`${item.label}-${item.href}`}
