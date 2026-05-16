@@ -85,6 +85,8 @@ export function normalizeModel(raw: unknown): CatalogueModel {
     max_price: maxPrice,
     hero_image_url: heroImage,
     body_type: typeof row.body_type === "string" ? row.body_type : null,
+    vehicle_category:
+      typeof row.vehicle_category === "string" ? row.vehicle_category : null,
   };
 }
 

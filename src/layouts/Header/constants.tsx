@@ -104,9 +104,12 @@ export interface HeaderNavItem {
   label: string;
   href: string;
   external?: boolean;
+  /** When true, href is rewritten from saved cars/bikes preference (Compare link). */
+  useVehicleCompareHref?: boolean;
 }
 
 export const defaultHeaderNavItems: HeaderNavItem[] = [
+  { label: "Compare", href: "/cars/compare", useVehicleCompareHref: true },
   { label: "Dealers", href: "/companies" },
   { label: "Media", href: "/media" },
   { label: "Stories", href: "/blog" },

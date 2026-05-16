@@ -7,6 +7,8 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMarketplaceStats } from "@/hooks/catalogue";
 import { usePreferenceFinder } from "@/hooks/advisor";
+import { useVehiclePreference } from "@/hooks/preferences";
+import { DEFAULT_VEHICLE_CATEGORY } from "@/lib/preferences";
 import { formatIntIn } from "@/lib/utils";
 import {
   ABOUT_CARD_BACKGROUND,
@@ -31,6 +33,7 @@ const SITE_NAME = "Autolokate";
 export function PlatformHighlights() {
   const { brandCount, listingCount, cityCount } = useMarketplaceStats();
   const { promptSnapshot, completed } = usePreferenceFinder();
+  const vehiclePreference = useVehiclePreference();
 
   const hasFullSnapshot =
     Boolean(promptSnapshot.city?.trim()) &&
@@ -39,7 +42,11 @@ export function PlatformHighlights() {
     Boolean(promptSnapshot.budget?.trim());
 
   const items = useMemo(() => {
+    const pref = vehiclePreference.value ?? DEFAULT_VEHICLE_CATEGORY;
     return HIGHLIGHT_ITEMS.map((item) => {
+      if (item.key === "compare") {
+        return { ...item, cta: { ...item.cta, href: `/${pref}/compare` } };
+      }
       if (item.key !== "ai") return item;
       const body =
         completed && hasFullSnapshot
@@ -54,6 +61,7 @@ export function PlatformHighlights() {
     promptSnapshot.budget,
     promptSnapshot.city,
     promptSnapshot.fuel,
+    vehiclePreference.value,
   ]);
 
   const aboutLead = `${SITE_NAME} is a research-first stack: ${formatIntIn(listingCount)} listings, ${formatIntIn(

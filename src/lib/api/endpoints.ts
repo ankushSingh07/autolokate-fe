@@ -38,6 +38,11 @@ export const endpoints = {
       `/v1/catalogue/brands/${encodeURIComponent(brandSlug)}/models/${encodeURIComponent(modelSlug)}/variants/${encodeURIComponent(variantSlug)}`,
     trending: "/v1/catalogue/trending",
     search: "/v1/catalogue/search",
+    /** Comma-separated variant UUIDs (`encodeURIComponent` each segment). */
+    compare: (variantIds: string[]) => {
+      const ids = variantIds.map((id) => encodeURIComponent(id.trim())).filter(Boolean).join(",");
+      return `/v1/catalogue/compare?ids=${ids}`;
+    },
   },
   taxonomy: {
     root: (category?: string) =>

@@ -26,6 +26,8 @@ export interface CatalogueModel {
   max_price?: number | null;
   hero_image_url?: string | null;
   body_type?: string | null;
+  /** Present when the API tags the row (e.g. `car` vs `bike`) — used for compare rails. */
+  vehicle_category?: string | null;
   [key: string]: unknown;
 }
 

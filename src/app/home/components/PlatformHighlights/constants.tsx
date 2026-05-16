@@ -56,7 +56,7 @@ export const HIGHLIGHT_ITEMS: HighlightItem[] = [
     icon: Layers,
     title: "Decision clarity",
     body: HIGHLIGHTS_FALLBACK_BODY.decision,
-    cta: { href: "/shop", label: "Browse the catalogue" },
+    cta: { href: "/cars/compare", label: "Open compare" },
   },
   {
     key: "expert",

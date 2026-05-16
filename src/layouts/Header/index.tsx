@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Menu, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { useIsAuthenticated } from "@/hooks/auth";
+import { useVehiclePreference } from "@/hooks/preferences";
+import { DEFAULT_VEHICLE_CATEGORY } from "@/lib/preferences";
 import { getHeaderNavigationItems } from "@/navigation";
 import { AvatarMenu } from "./AvatarMenu";
 import {
@@ -75,7 +77,14 @@ export function Header({ variant = "default", className }: HeaderProps) {
   const scrolled = useScrolled();
   const [open, setOpen] = useState(false);
   const [compactSearchOpen, setCompactSearchOpen] = useState(false);
-  const navItems = resolveNavItems();
+  const vehiclePreference = useVehiclePreference();
+  const navItems = useMemo(() => {
+    const raw = resolveNavItems();
+    const pref = vehiclePreference.value ?? DEFAULT_VEHICLE_CATEGORY;
+    return raw.map((item) =>
+      item.useVehicleCompareHref ? { ...item, href: `/${pref}/compare` } : item,
+    );
+  }, [vehiclePreference.value]);
   const isPremium = variant === "premium";
   // `null` while the auth state is still hydrating — render a placeholder to
   // reserve space and avoid a "Log in" → avatar flash on first paint.
@@ -123,12 +132,15 @@ export function Header({ variant = "default", className }: HeaderProps) {
           className="hidden items-center gap-1 xl:flex"
         >
           {navItems.map((item) => {
+            const compareNav = item.useVehicleCompareHref === true;
             const active =
               pathname === item.href ||
-              (item.href !== "/" && pathname?.startsWith(item.href + "/"));
+              (!compareNav && item.href !== "/" && pathname?.startsWith(`${item.href}/`)) ||
+              (compareNav &&
+                (pathname === "/cars/compare" || pathname === "/bikes/compare"));
             return (
               <Link
-                key={item.href}
+                key={`${item.label}-${item.href}`}
                 href={item.href}
                 target={item.external ? "_blank" : undefined}
                 rel={item.external ? "noreferrer noopener" : undefined}
@@ -204,12 +216,15 @@ export function Header({ variant = "default", className }: HeaderProps) {
         >
           <div className="flex flex-col gap-0.5">
             {navItems.map((item) => {
+              const compareNav = item.useVehicleCompareHref === true;
               const active =
                 pathname === item.href ||
-                (item.href !== "/" && pathname?.startsWith(item.href + "/"));
+                (!compareNav && item.href !== "/" && pathname?.startsWith(`${item.href}/`)) ||
+                (compareNav &&
+                  (pathname === "/cars/compare" || pathname === "/bikes/compare"));
               return (
                 <Link
-                  key={item.href}
+                  key={`${item.label}-${item.href}`}
                   href={item.href}
                   target={item.external ? "_blank" : undefined}
                   rel={item.external ? "noreferrer noopener" : undefined}
