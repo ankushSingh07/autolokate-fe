@@ -25,7 +25,7 @@ export const MARKETPLACE_CARDS: MarketplaceCard[] = [
     icon: Scale,
     title: "Start compare",
     body: "Pick two or three cars and compare specs, price, and features.",
-    cta: { label: "Start Compare", href: "/shop" },
+    cta: { label: "Start Compare", href: "/cars/compare" },
   },
   {
     id: "explore",

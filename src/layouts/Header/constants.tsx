@@ -104,12 +104,17 @@ export interface HeaderNavItem {
   label: string;
   href: string;
   external?: boolean;
+  /** When true, href is rewritten from saved cars/bikes preference (Compare link). */
+  useVehicleCompareHref?: boolean;
+  /** When true, href is rewritten from saved cars/bikes preference (Explore catalogue link). */
+  useVehicleExploreHref?: boolean;
 }
 
 export const defaultHeaderNavItems: HeaderNavItem[] = [
-  { label: "Dealers", href: "/companies" },
+  { label: "About Us", href: "/about-us" },
+  { label: "Explore", href: "/cars/explore", useVehicleExploreHref: true },
+  { label: "Compare", href: "/cars/compare", useVehicleCompareHref: true },
   { label: "Media", href: "/media" },
-  { label: "Stories", href: "/blog" },
 ];
 
 /** Primary auth CTA shown on the right of the header. */

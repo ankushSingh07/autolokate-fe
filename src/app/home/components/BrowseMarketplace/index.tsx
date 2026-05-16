@@ -82,6 +82,12 @@ export function BrowseMarketplace() {
         router.push(`/${vehicleType}`);
         return;
       }
+      if (id === "compare") {
+        const vehicleType =
+          readVehiclePreference() ?? DEFAULT_VEHICLE_CATEGORY;
+        router.push(`/${vehicleType}/compare`);
+        return;
+      }
       if (id !== "explore") {
         router.push(href || "/shop");
         return;
