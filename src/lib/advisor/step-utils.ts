@@ -1,4 +1,5 @@
 import type { AdvisorAnswerEntry, AdvisorStep, PromptSnapshot } from "./types";
+import { CANONICAL_ADVISOR_OPTION_LABELS } from "./option-labels";
 
 /** Known slug prefixes we strip so the line reads like a choice, not an id. */
 const OPTION_CATEGORY_PREFIXES = new Set([
@@ -59,7 +60,46 @@ export function humanizeOptionId(id: string): string {
   const raw = id.trim();
   if (!raw) return "—";
 
+  const canonical = CANONICAL_ADVISOR_OPTION_LABELS[raw];
+  if (canonical) return canonical;
+
   const parts = raw.split("_").filter(Boolean);
+
+  // Budget slugs not present in the canonical map (e.g. new bands from API).
+  if (parts[0]?.toLowerCase() === "budget") {
+    const tail = parts.slice(1);
+    if (tail.length === 2 && tail[0] && tail[1] && tail.every((t) => /^\d+$/.test(t))) {
+      return `${tail[0]} - ${tail[1]} Lakhs`;
+    }
+    if (
+      tail.length === 2 &&
+      tail[0]?.toLowerCase() === "under" &&
+      tail[1] &&
+      /^\d+$/.test(tail[1])
+    ) {
+      return `Under ${tail[1]} Lakhs`;
+    }
+    if (
+      tail.length === 2 &&
+      tail[0] &&
+      tail[1]?.toLowerCase() === "plus" &&
+      /^\d+$/.test(tail[0])
+    ) {
+      return `${tail[0]} Lakhs+`;
+    }
+  }
+
+  // Family slug patterns not in the canonical map.
+  if (parts[0]?.toLowerCase() === "family") {
+    const tail = parts.slice(1);
+    if (tail.length === 2 && tail[0] && tail[1] && tail.every((t) => /^\d+$/.test(t))) {
+      return `${tail[0]}-${tail[1]} people`;
+    }
+    if (tail.length === 2 && tail[0] && /^\d+$/.test(tail[0]) && tail[1]?.toLowerCase() === "plus") {
+      return `${tail[0]}+ people`;
+    }
+  }
+
   if (parts.length === 1) {
     const w = parts[0].toLowerCase();
     return TOKEN_LABELS[w] ?? parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
@@ -116,6 +156,21 @@ export function entryDisplayLine(entry: AdvisorAnswerEntry, step?: AdvisorStep):
     return entry.display_labels.map((s) => s.trim()).join(" · ");
   }
   return formatAnswerDisplay(ids, step);
+}
+
+/** Ordered labels for each selected option (for chips / comma lists). */
+export function labelsForAnswerEntry(entry: AdvisorAnswerEntry, step?: AdvisorStep): string[] {
+  const ids = entry.selected_option_ids;
+  if (!ids.length) return [];
+  if (
+    entry.display_labels &&
+    entry.display_labels.length === ids.length &&
+    entry.display_labels.every((s) => s.trim().length > 0)
+  ) {
+    return entry.display_labels.map((s) => s.trim());
+  }
+  const byId = new Map((step?.options ?? []).map((o) => [o.id, o.label.trim()]));
+  return ids.map((id) => byId.get(id) ?? humanizeOptionId(id));
 }
 
 /** Map a wizard step id to the rolling prompt snapshot slot, if any. */

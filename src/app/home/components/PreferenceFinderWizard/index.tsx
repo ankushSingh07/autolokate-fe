@@ -4,16 +4,18 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Building2, Check, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePreferenceFinder } from "@/hooks/advisor/usePreferenceFinder";
 import {
-  entryDisplayLine,
-  formatStepLabel,
   getCurrentStepPosition,
   getOrderedStepIds,
   humanizeOptionId,
 } from "@/lib/advisor/step-utils";
-import type { AdvisorAnswerEntry, AdvisorStep } from "@/lib/advisor/types";
+import { buildPreferenceSummaryRows, type PreferenceSummaryRow } from "@/lib/advisor/preference-summary";
+import type { AdvisorStep } from "@/lib/advisor/types";
 import { cn } from "@/lib/utils";
+import { PreferenceSummaryFields } from "../PreferenceSummaryFields";
 import { QUICK_PICK_CITIES, WIZARD_COPY } from "./constants";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -102,6 +104,51 @@ function LoggedOutCard() {
   );
 }
 
+const OPTION_SKELETON_PLACEHOLDERS = 6;
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Bootstrap loading — mirrors progress strip, question, option grid, footer
+ * ──────────────────────────────────────────────────────────────────────── */
+function PreferenceFinderLoadingSkeleton() {
+  return (
+    <div
+      className="flex min-h-[min(20rem,60vh)] flex-col"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <span className="sr-only">{WIZARD_COPY.loadingLabel}</span>
+
+      <div className="border-b border-border/60 px-5 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-3 w-32 rounded-md" />
+          <Skeleton className="h-3 w-9 rounded-md" />
+        </div>
+        <Skeleton className="mt-2 h-1.5 w-full rounded-full" />
+        <Skeleton className="mt-4 h-6 w-[min(100%,24rem)] max-w-full rounded-lg sm:h-7" />
+      </div>
+
+      <div className="flex-1 px-5 py-5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {Array.from({ length: OPTION_SKELETON_PLACEHOLDERS }, (_, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/30 px-3.5 py-3"
+            >
+              <Skeleton className="h-4 flex-1 rounded-md sm:max-w-[75%]" />
+              <Skeleton className="h-5 w-5 shrink-0 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <footer className="flex items-center justify-between border-t border-border/60 px-5 py-3.5">
+        <Skeleton className="h-8 w-[4.5rem] rounded-full" />
+        <Skeleton className="h-8 w-[5.25rem] rounded-full" />
+      </footer>
+    </div>
+  );
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Progress strip
  * ──────────────────────────────────────────────────────────────────────── */
@@ -116,20 +163,16 @@ function ProgressBar({
   percent: number;
   question: string;
 }) {
+  const clamped = Math.min(100, Math.max(0, percent));
   return (
     <div>
       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
         <span className="font-semibold uppercase tracking-[0.12em]">
           Step {current} of {total}
         </span>
-        <span className="tabular-nums">{percent}%</span>
+        <span className="tabular-nums">{clamped}%</span>
       </div>
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out motion-reduce:transition-none"
-          style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
-        />
-      </div>
+      <Progress value={clamped} className="mt-2 h-1.5" aria-label="Questionnaire progress" />
       <h4 className="font-display mt-4 text-balance text-base font-semibold tracking-tight text-foreground sm:text-lg">
         {question}
       </h4>
@@ -287,14 +330,12 @@ function CityField({
  * Summary — answers so far + restart / view-matches actions
  * ──────────────────────────────────────────────────────────────────────── */
 function SummaryView({
-  answerHistory,
-  stepMap,
+  summaryRows,
   onStartOver,
   onViewMatches,
   resetting,
 }: {
-  answerHistory: AdvisorAnswerEntry[];
-  stepMap: Record<string, AdvisorStep>;
+  summaryRows: PreferenceSummaryRow[];
   onStartOver: () => void;
   onViewMatches: () => void;
   resetting: boolean;
@@ -307,21 +348,11 @@ function SummaryView({
       <p className="mt-1.5 text-sm text-muted-foreground">
         {WIZARD_COPY.emptyStateDescription}
       </p>
-      <dl className="mt-4 grid gap-2 sm:grid-cols-2">
-        {answerHistory.map((entry) => (
-          <div
-            key={entry.step_id}
-            className="rounded-xl border border-border/60 bg-card px-3 py-2.5"
-          >
-            <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {formatStepLabel(entry.step_id)}
-            </dt>
-            <dd className="mt-1 text-sm font-medium text-foreground">
-              {entryDisplayLine(entry, stepMap[entry.step_id])}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <PreferenceSummaryFields
+        rows={summaryRows}
+        className="mt-4 grid gap-2 sm:grid-cols-2"
+        mustHavesSpanClassName="sm:col-span-2"
+      />
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={onViewMatches}>
           {WIZARD_COPY.viewMatchesLabel}
@@ -367,12 +398,18 @@ export function PreferenceFinderWizard() {
     resetJourney,
     bootstrap,
     clearError,
+    advisorResults,
   } = pf;
 
   const [pendingSingle, setPendingSingle] = useState<{ id: string; label: string } | null>(
     null,
   );
   const [resetting, setResetting] = useState(false);
+
+  const summaryRows = useMemo(
+    () => buildPreferenceSummaryRows(completed, answerHistory, stepMap, advisorResults),
+    [completed, answerHistory, stepMap, advisorResults],
+  );
 
   // Reflect any previously-saved answer into pending state when the step
   // changes (so jumping back to "fuel" pre-selects the user's prior choice).
@@ -414,11 +451,25 @@ export function PreferenceFinderWizard() {
     [orderedStepIds, currentStep?.step_id],
   );
 
-  const progressCurrent = completed
-    ? orderedStepIds.length
-    : answerHistory.length + (currentStep ? 1 : 0);
-  const progressTotal = Math.max(orderedStepIds.length, progressCurrent || 1);
-  const progressPct = completed ? 100 : Math.round((progressCurrent / progressTotal) * 100);
+  /**
+   * `stepMap` only grows as steps load; early on `orderedStepIds.length` is often 1,
+   * which wrongly produced “Step 1 of 1” and 100%. Use a minimum estimate and,
+   * while still on the last *known* step and not completed, reserve headroom so
+   * the bar never reads “done” before submit.
+   */
+  const progressTotal = useMemo(() => {
+    if (completed) return Math.max(orderedStepIds.length, 1);
+    const knownLen = orderedStepIds.length;
+    const stepNum = currentIndex + 1;
+    const base = Math.max(knownLen, WIZARD_COPY.estimatedWizardSteps);
+    const onLastKnownStep =
+      Boolean(currentStep) && knownLen > 0 && stepNum === knownLen;
+    const denominator = onLastKnownStep ? Math.max(base, stepNum + 1) : base;
+    return Math.max(denominator, stepNum, 1);
+  }, [completed, orderedStepIds.length, currentIndex, currentStep]);
+
+  const progressNumerator = completed ? progressTotal : currentIndex + 1;
+  const progressPct = completed ? 100 : Math.round((progressNumerator / progressTotal) * 100);
 
   const canProceed = useMemo(() => {
     if (!currentStep) return false;
@@ -482,20 +533,24 @@ export function PreferenceFinderWizard() {
       className="relative flex w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
     >
       <header className="border-b border-border/70 bg-muted/30 px-5 py-3.5">
-        <div className="flex items-center gap-1.5">
-          <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />
-          <span className="text-xs font-semibold tracking-wide text-foreground">
-            {WIZARD_COPY.smartFinderTitle}
-          </span>
-        </div>
+        {bootstrapping || !ready ? (
+          <div className="flex items-center gap-1.5" aria-hidden>
+            <Skeleton className="size-3.5 shrink-0 rounded-full" />
+            <Skeleton className="h-3.5 w-36 max-w-[70%] rounded-md" />
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />
+            <span className="text-xs font-semibold tracking-wide text-foreground">
+              {WIZARD_COPY.smartFinderTitle}
+            </span>
+          </div>
+        )}
       </header>
 
       <div className="flex min-h-[min(20rem,60vh)] flex-col">
         {bootstrapping || !ready ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5 py-12">
-            <Loader2 className="h-7 w-7 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">{WIZARD_COPY.loadingLabel}</p>
-          </div>
+          <PreferenceFinderLoadingSkeleton />
         ) : error ? (
           <div className="flex flex-1 flex-col justify-center px-5 py-8">
             <p className="text-sm font-medium text-destructive">{error}</p>
@@ -516,7 +571,7 @@ export function PreferenceFinderWizard() {
             <div className="border-b border-border/60 px-5 py-4">
               <ProgressBar
                 current={Math.max(1, currentIndex + 1)}
-                total={Math.max(progressTotal, 1)}
+                total={progressTotal}
                 percent={progressPct}
                 question={currentStep.question}
               />
@@ -578,8 +633,7 @@ export function PreferenceFinderWizard() {
         ) : (
           <div className="flex-1 px-5 py-5">
             <SummaryView
-              answerHistory={answerHistory}
-              stepMap={stepMap}
+              summaryRows={summaryRows}
               onStartOver={handleStartOver}
               onViewMatches={() => {
                 document
