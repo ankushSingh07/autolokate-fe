@@ -2,13 +2,6 @@ import type { AdvisorMatchCard } from "@/lib/advisor/types";
 
 export type SortKey = "match" | "price_asc" | "price_desc" | "mileage_desc";
 
-export const SORT_LABELS: Record<SortKey, string> = {
-  match: "Best match",
-  price_asc: "Price · low to high",
-  price_desc: "Price · high to low",
-  mileage_desc: "Mileage · high to low",
-};
-
 /** Pure compare function so sort logic stays out of the React component. */
 export function sortMatches(rows: AdvisorMatchCard[], by: SortKey): AdvisorMatchCard[] {
   const sorted = [...rows];

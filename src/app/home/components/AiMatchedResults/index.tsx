@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Sparkles, SlidersHorizontal } from "lucide-react";
+import { Pencil, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useAdvisorMatches } from "@/hooks/advisor/useAdvisorMatches";
 import { cn } from "@/lib/utils";
+import { PreferenceSummaryChips } from "../PreferenceSummaryChips";
 import { AiMatchedCarCard } from "../AiMatchedCarCard";
-import { PAGE_SIZE, SORT_LABELS, type SortKey, sortMatches } from "./constants";
+import { PAGE_SIZE, sortMatches } from "./constants";
 
 /**
  * AI-matched results section — only renders once the wizard reports `completed`
@@ -13,11 +16,10 @@ import { PAGE_SIZE, SORT_LABELS, type SortKey, sortMatches } from "./constants";
  * so the home page collapses cleanly for first-time visitors.
  */
 export function AiMatchedResults() {
-  const { matches, meta, completed } = useAdvisorMatches();
-  const [sortBy, setSortBy] = useState<SortKey>("match");
+  const { matches, meta, completed, preferenceSummaryRows } = useAdvisorMatches();
   const [visible, setVisible] = useState(PAGE_SIZE);
 
-  const sorted = useMemo(() => sortMatches(matches, sortBy), [matches, sortBy]);
+  const sorted = useMemo(() => sortMatches(matches, "match"), [matches]);
   const shown = sorted.slice(0, visible);
   const remaining = Math.max(0, sorted.length - visible);
 
@@ -30,7 +32,7 @@ export function AiMatchedResults() {
       className="relative border-y border-border/70 bg-background py-12 sm:py-16"
     >
       <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
-        <header className="mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between">
+        <header className="mb-8 sm:mb-10">
           <div className="min-w-0">
             <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
@@ -58,23 +60,30 @@ export function AiMatchedResults() {
               </p>
             )}
           </div>
-
-          <label className="inline-flex items-center gap-2 rounded-xl border border-border/70 bg-card px-3 py-2 text-sm shadow-sm">
-            <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden />
-            <span className="sr-only">Sort matches</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortKey)}
-              className="bg-transparent text-sm font-medium text-foreground focus:outline-none"
-            >
-              {(Object.entries(SORT_LABELS) as [SortKey, string][]).map(([k, l]) => (
-                <option key={k} value={k}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </label>
         </header>
+
+        {preferenceSummaryRows.length > 0 && (
+          <div
+            className="mb-6 rounded-xl border border-border/70 bg-card/50 px-3 py-2.5 sm:mb-8 sm:px-4 sm:py-3"
+            aria-labelledby="ai-matched-preferences-heading"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p
+                id="ai-matched-preferences-heading"
+                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+              >
+                Your preferences
+              </p>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5 px-3 text-xs font-semibold" asChild>
+                <Link href="/#preference-finder-stepper">
+                  <Pencil className="h-3.5 w-3.5 opacity-80" aria-hidden />
+                  Edit preferences
+                </Link>
+              </Button>
+            </div>
+            <PreferenceSummaryChips rows={preferenceSummaryRows} className="mt-2" />
+          </div>
+        )}
 
         <ul
           className={cn(

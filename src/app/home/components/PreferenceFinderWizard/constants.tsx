@@ -23,6 +23,8 @@ export const WIZARD_COPY = {
     { title: "To the model page", body: "Specs, price band, full detail." },
   ],
   smartFinderTitle: "Smart Car Finder",
+  /** Fallback when the API has only hydrated the current step — avoids “1 of 1 / 100%” on step 1. */
+  estimatedWizardSteps: 4,
   retryLabel: "Retry",
   loadingLabel: "Loading questionnaire…",
   emptyStateTitle: "All set — your preferences are saved.",
